@@ -3,6 +3,7 @@ const cors = require("cors");
 
 const venuesRouter = require("./routes/venues");
 const reviewsRouter = require("./routes/reviews");
+const photosRouter = require("./routes/photos");
 
 const app = express();
 
@@ -19,7 +20,10 @@ app.use("/api/venues", venuesRouter);
 // Reviews read endpoint — the venue-detail page reads from this.
 app.use("/api/reviews", reviewsRouter);
 
-// TODO (team): mount auth, photos, ml, verifications, users routers here.
+// Charles's photo + ML (YOLO-World) detection endpoints.
+app.use("/api/photos", photosRouter);
+
+// TODO (team): mount auth, verifications, users routers here.
 
 // 404 for unknown routes.
 app.use((req, res) => {

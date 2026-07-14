@@ -43,6 +43,7 @@ model Venue {
 
   features VenueFeature[]
   reviews  Review[]
+  photos   Photo[]
 
   @@index([latitude, longitude])
   @@index([city, state])
@@ -77,4 +78,52 @@ model Review {
   createdAt    DateTime  @default(now())
 
   @@index([venueId])
+}
+
+// --- Charles: photos + ML (YOLO-World) detection ---
+
+model Photo {
+  id           String   @id @default(uuid())
+  venueId      String
+  venue        Venue    @relation(fields: [venueId], references: [id], onDelete: Cascade)
+  userId       String?
+  imageUrl     String
+  thumbnailUrl String?
+  mlAnalyzed   Boolean  @default(false)
+  uploadedAt   DateTime @default(now())
+
+  analysis   MLAnalysis?
+  detections Detection[]
+
+  @@index([venueId])
+}
+
+model MLAnalysis {
+  id              String   @id @default(uuid())
+  photoId         String   @unique
+  photo           Photo    @relation(fields: [photoId], references: [id], onDelete: Cascade)
+  modelVersion    String
+  processingTime  Float?
+  totalDetections Int      @default(0)
+  highConfidence  Int      @default(0)
+  analyzedAt      DateTime @default(now())
+
+  detections Detection[]
+}
+
+model Detection {
+  id                   String     @id @default(uuid())
+  photoId              String
+  photo                Photo      @relation(fields: [photoId], references: [id], onDelete: Cascade)
+  mlAnalysisId         String
+  analysis             MLAnalysis @relation(fields: [mlAnalysisId], references: [id], onDelete: Cascade)
+  cocoLabel            String
+  accessibilityFeature String
+  confidence           Float
+  boundingBox          Json
+  verified             Boolean    @default(false)
+  verificationCount    Int        @default(0)
+
+  @@index([photoId])
+  @@index([accessibilityFeature])
 }

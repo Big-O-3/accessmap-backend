@@ -1,0 +1,80 @@
+// AccessMap database schema.
+//
+// Prateek owns Venue + VenueFeature (search, detail, scoring). The other
+// models are included so the schema is coherent for the team; Charles/Brandon
+// own their relations (photos, ML, reviews, verifications, auth, activity).
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  passwordHash String?
+  googleId     String?  @unique
+  username     String   @unique
+  createdAt    DateTime @default(now())
+
+  reviews Review[]
+}
+
+model Venue {
+  id                 String   @id @default(uuid())
+  name               String
+  address            String
+  city               String
+  state              String
+  zipCode            String
+  latitude           Float
+  longitude          Float
+  placeId            String?  @unique
+  venueType          String
+  accessibilityScore Int      @default(0)
+  totalReviews       Int      @default(0)
+  totalPhotos        Int      @default(0)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  features VenueFeature[]
+  reviews  Review[]
+
+  @@index([latitude, longitude])
+  @@index([city, state])
+}
+
+model VenueFeature {
+  id                String   @id @default(uuid())
+  venueId           String
+  venue             Venue    @relation(fields: [venueId], references: [id], onDelete: Cascade)
+  featureType       String
+  mlDetected        Boolean  @default(false)
+  mlConfidence      Float?
+  communityVerified Boolean  @default(false)
+  verifiedCount     Int      @default(0)
+  notes             String?
+  createdAt         DateTime @default(now())
+
+  @@unique([venueId, featureType])
+  @@index([featureType])
+}
+
+model Review {
+  id           String    @id @default(uuid())
+  venueId      String
+  venue        Venue     @relation(fields: [venueId], references: [id], onDelete: Cascade)
+  userId       String
+  user         User      @relation(fields: [userId], references: [id])
+  rating       Int
+  comment      String
+  visitDate    DateTime?
+  helpfulCount Int       @default(0)
+  createdAt    DateTime  @default(now())
+
+  @@index([venueId])
+}

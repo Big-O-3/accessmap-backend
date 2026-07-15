@@ -2,6 +2,7 @@ const express = require("express");
 const cors = require("cors");
 
 const venuesRouter = require("./routes/venues");
+const reviewsRouter = require("./routes/reviews");
 
 const app = express();
 
@@ -12,10 +13,13 @@ app.get("/health", (_req, res) => {
   res.json({ status: "healthy" });
 });
 
-// Prateek's venue endpoints (search, detail, score, create).
+// Prateek's venue endpoints (search, detail, score, route, create).
 app.use("/api/venues", venuesRouter);
 
-// TODO (team): mount auth, photos, ml, reviews, verifications, users routers here.
+// Reviews read endpoint — the venue-detail page reads from this.
+app.use("/api/reviews", reviewsRouter);
+
+// TODO (team): mount auth, photos, ml, verifications, users routers here.
 
 // 404 for unknown routes.
 app.use((req, res) => {

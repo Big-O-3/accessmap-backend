@@ -127,6 +127,39 @@ router.get("/:id/score", async (req, res, next) => {
   }
 });
 
+// GET /api/venues/:id/route
+// Returns a Google Maps directions deep-link to the venue. (The frontend can
+// build this itself, but exposing it as an endpoint keeps directions logic in
+// one place and satisfies the venue-route requirement.)
+router.get("/:id/route", async (req, res, next) => {
+  try {
+    const venue = await prisma.venue.findUnique({
+      where: { id: req.params.id },
+    });
+
+    if (!venue) {
+      return res.status(404).json({ error: "Venue not found" });
+    }
+
+    // Prefer routing to the exact place; fall back to the street address.
+    const destination = venue.placeId
+      ? `${venue.latitude},${venue.longitude}`
+      : encodeURIComponent(
+          `${venue.address}, ${venue.city}, ${venue.state} ${venue.zipCode}`.trim(),
+        );
+
+    const params = new URLSearchParams({ api: "1", destination });
+    if (venue.placeId) params.set("destination_place_id", venue.placeId);
+
+    res.json({
+      venueId: venue.id,
+      directionsUrl: `https://www.google.com/maps/dir/?${params.toString()}`,
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
 // POST /api/venues
 router.post("/", async (req, res, next) => {
   try {

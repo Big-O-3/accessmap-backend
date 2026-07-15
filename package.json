@@ -25,10 +25,12 @@
   "homepage": "https://github.com/Big-O-3/accessmap-backend#readme",
   "dependencies": {
     "@prisma/client": "^6.19.3",
+    "bcrypt": "^6.0.0",
     "cloudinary": "^2.10.0",
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
+    "jsonwebtoken": "^9.0.3",
     "multer": "^2.2.0"
   },
   "devDependencies": {

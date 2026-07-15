@@ -1,6 +1,7 @@
 const express = require("express");
 const cors = require("cors");
 
+const authRouter = require("./routes/auth");
 const venuesRouter = require("./routes/venues");
 const reviewsRouter = require("./routes/reviews");
 const photosRouter = require("./routes/photos");
@@ -14,6 +15,9 @@ app.get("/health", (_req, res) => {
   res.json({ status: "healthy" });
 });
 
+// Auth: register, login, and current-user (issues/validates JWTs).
+app.use("/api/auth", authRouter);
+
 // Prateek's venue endpoints (search, detail, score, route, create).
 app.use("/api/venues", venuesRouter);
 
@@ -23,7 +27,7 @@ app.use("/api/reviews", reviewsRouter);
 // Charles's photo + ML (YOLO-World) detection endpoints.
 app.use("/api/photos", photosRouter);
 
-// TODO (team): mount auth, verifications, users routers here.
+// TODO (team): mount verifications, users routers here.
 
 // 404 for unknown routes.
 app.use((req, res) => {

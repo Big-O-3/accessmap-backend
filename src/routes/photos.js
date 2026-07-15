@@ -1,6 +1,8 @@
 const express = require("express");
+const multer = require("multer");
 const prisma = require("../lib/prisma");
 const { analyzePhoto, MODEL_VERSION } = require("../lib/mlService");
+const cloudinary = require("../lib/cloudinary");
 
 const router = express.Router();
 
@@ -8,16 +10,43 @@ const router = express.Router();
 // pre-checked for the contributor. Mirrors the ML service's threshold.
 const HIGH_CONFIDENCE = 0.85;
 
-// POST /api/photos
-// Register a photo for a venue. Cloudinary upload isn't wired yet, so we accept
-// an already-hosted image URL; swap for a real upload later without changing
-// the analyze flow.
-router.post("/", async (req, res, next) => {
-  try {
-    const { venueId, imageUrl, thumbnailUrl, userId } = req.body;
+// Hold uploaded files in memory (max 10MB) so we can stream them to Cloudinary
+// without writing to disk.
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 10 * 1024 * 1024 },
+});
 
-    if (!venueId || !imageUrl) {
-      return res.status(400).json({ error: "venueId and imageUrl are required" });
+// POST /api/photos
+// Register a photo for a venue. Accepts EITHER:
+//   - a real file upload (multipart/form-data, field "image") -> stored on
+//     Cloudinary, or
+//   - a JSON body with an already-hosted { imageUrl } (useful for testing).
+router.post("/", upload.single("image"), async (req, res, next) => {
+  try {
+    const { venueId, userId } = req.body;
+    let { imageUrl, thumbnailUrl } = req.body;
+
+    if (!venueId) {
+      return res.status(400).json({ error: "venueId is required" });
+    }
+
+    // If a file was uploaded, push it to Cloudinary and use the returned URLs.
+    if (req.file) {
+      if (!cloudinary.isConfigured) {
+        return res.status(503).json({
+          error: "Cloudinary is not configured (set CLOUDINARY_* env vars)",
+        });
+      }
+      const uploaded = await cloudinary.uploadImage(req.file.buffer);
+      imageUrl = uploaded.imageUrl;
+      thumbnailUrl = uploaded.thumbnailUrl;
+    }
+
+    if (!imageUrl) {
+      return res
+        .status(400)
+        .json({ error: "Provide an 'image' file upload or an imageUrl" });
     }
 
     const venue = await prisma.venue.findUnique({ where: { id: venueId } });

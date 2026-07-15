@@ -3,6 +3,7 @@ const multer = require("multer");
 const prisma = require("../lib/prisma");
 const { analyzePhoto, MODEL_VERSION } = require("../lib/mlService");
 const cloudinary = require("../lib/cloudinary");
+const requireAuth = require("../middleware/requireAuth");
 
 const router = express.Router();
 
@@ -22,9 +23,10 @@ const upload = multer({
 //   - a real file upload (multipart/form-data, field "image") -> stored on
 //     Cloudinary, or
 //   - a JSON body with an already-hosted { imageUrl } (useful for testing).
-router.post("/", upload.single("image"), async (req, res, next) => {
+router.post("/", requireAuth, upload.single("image"), async (req, res, next) => {
   try {
-    const { venueId, userId } = req.body;
+    const { venueId } = req.body;
+    const userId = req.userId; // from the auth token
     let { imageUrl, thumbnailUrl } = req.body;
 
     if (!venueId) {
@@ -97,7 +99,7 @@ router.get("/:id", async (req, res, next) => {
 // POST /api/photos/:id/analyze
 // Run the YOLO-World ML service on the photo, then persist an MLAnalysis row and
 // its Detection rows. Returns the detections shaped for the frontend.
-router.post("/:id/analyze", async (req, res, next) => {
+router.post("/:id/analyze", requireAuth, async (req, res, next) => {
   try {
     const photo = await prisma.photo.findUnique({ where: { id: req.params.id } });
     if (!photo) {
@@ -171,7 +173,7 @@ router.post("/:id/analyze", async (req, res, next) => {
 // PATCH /api/photos/:id/detections
 // Confirm or reject individual detections by id.
 // Body: { confirmed: [detectionId], rejected: [detectionId] }
-router.patch("/:id/detections", async (req, res, next) => {
+router.patch("/:id/detections", requireAuth, async (req, res, next) => {
   try {
     const photo = await prisma.photo.findUnique({ where: { id: req.params.id } });
     if (!photo) {
@@ -205,7 +207,7 @@ router.patch("/:id/detections", async (req, res, next) => {
 });
 
 // DELETE /api/photos/:id
-router.delete("/:id", async (req, res, next) => {
+router.delete("/:id", requireAuth, async (req, res, next) => {
   try {
     const photo = await prisma.photo.findUnique({ where: { id: req.params.id } });
     if (!photo) {

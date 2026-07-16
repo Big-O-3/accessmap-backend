@@ -80,7 +80,7 @@ model Review {
   @@index([venueId])
 }
 
-// --- Charles: photos + ML (YOLO-World) detection ---
+// --- Charles: photos + ML (Grounding DINO) detection ---
 
 model Photo {
   id           String   @id @default(uuid())

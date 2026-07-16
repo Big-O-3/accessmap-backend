@@ -97,7 +97,7 @@ router.get("/:id", async (req, res, next) => {
 });
 
 // POST /api/photos/:id/analyze
-// Run the YOLO-World ML service on the photo, then persist an MLAnalysis row and
+// Run the Grounding DINO ML service on the photo, then persist an MLAnalysis row and
 // its Detection rows. Returns the detections shaped for the frontend.
 router.post("/:id/analyze", requireAuth, async (req, res, next) => {
   try {

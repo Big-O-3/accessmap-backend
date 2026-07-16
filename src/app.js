@@ -24,7 +24,7 @@ app.use("/api/venues", venuesRouter);
 // Reviews read endpoint — the venue-detail page reads from this.
 app.use("/api/reviews", reviewsRouter);
 
-// Charles's photo + ML (YOLO-World) detection endpoints.
+// Charles's photo + ML (Grounding DINO) detection endpoints.
 app.use("/api/photos", photosRouter);
 
 // TODO (team): mount verifications, users routers here.

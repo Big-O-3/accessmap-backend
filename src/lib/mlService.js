@@ -1,5 +1,5 @@
-// Client for the Python ML service (accessmap-ml), which runs YOLO-World and
-// returns detected accessibility features for a photo.
+// Client for the Python ML service (accessmap-ml), which runs Grounding DINO
+// and returns detected accessibility features for a photo.
 //
 // The ML service exposes POST /analyze expecting a multipart image upload. Our
 // photos are stored as URLs (e.g. Cloudinary), so we fetch the image bytes here
@@ -8,8 +8,8 @@
 const ML_SERVICE_URL = process.env.ML_SERVICE_URL || "http://localhost:5001";
 
 // The model version we record on each MLAnalysis row. Keep in sync with the
-// weights used by accessmap-ml (detector.py).
-const MODEL_VERSION = "yolov8s-world";
+// model used by accessmap-ml (detector.py MODEL_VERSION).
+const MODEL_VERSION = "grounding-dino-tiny";
 
 // Fetch an image by URL and send it to the ML service for detection.
 // Returns the parsed response: { detections: [...], altTextSuggestion }.

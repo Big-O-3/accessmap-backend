@@ -5,6 +5,7 @@ const authRouter = require("./routes/auth");
 const venuesRouter = require("./routes/venues");
 const reviewsRouter = require("./routes/reviews");
 const photosRouter = require("./routes/photos");
+const contributionsRouter = require("./routes/contributions");
 
 const app = express();
 
@@ -26,6 +27,10 @@ app.use("/api/reviews", reviewsRouter);
 
 // Charles's photo + ML (Grounding DINO) detection endpoints.
 app.use("/api/photos", photosRouter);
+
+// Add Venue contribution submit (Step 4). Auth optional until the frontend
+// ships a sign-in flow.
+app.use("/api/contributions", contributionsRouter);
 
 // TODO (team): mount verifications, users routers here.
 

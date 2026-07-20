@@ -90,6 +90,10 @@ router.get("/:id", async (req, res, next) => {
       include: {
         features: true,
         reviews: { orderBy: { createdAt: "desc" } },
+        photos: {
+          orderBy: { uploadedAt: "desc" },
+          include: { detections: true },
+        },
       },
     });
 
@@ -97,8 +101,28 @@ router.get("/:id", async (req, res, next) => {
       return res.status(404).json({ error: "Venue not found" });
     }
 
+    // Shape photos + their detections for the frontend's DetectionImage
+    // (needs imageUrl and detections[].{ accessibilityFeature, confidence,
+    // boundingBox }). Only confirmed detections are shown so rejected false
+    // positives don't appear as bounding boxes on the public venue page.
+    const photos = venue.photos.map((p) => ({
+      id: p.id,
+      imageUrl: p.imageUrl,
+      thumbnailUrl: p.thumbnailUrl,
+      detections: p.detections
+        .filter((d) => d.verified)
+        .map((d) => ({
+          id: d.id,
+          cocoLabel: d.cocoLabel,
+          accessibilityFeature: d.accessibilityFeature,
+          confidence: d.confidence,
+          boundingBox: d.boundingBox,
+        })),
+    }));
+
     res.json({
       ...serializeVenue(venue),
+      photos,
       reviews: venue.reviews,
     });
   } catch (err) {

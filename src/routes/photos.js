@@ -121,7 +121,7 @@ router.post("/:id/analyze", optionalAuth, async (req, res, next) => {
     const highConfidence = detections.filter((d) => d.confidence >= HIGH_CONFIDENCE).length;
 
     // Persist analysis + detections together; re-analyzing replaces the prior run.
-    const analysis = await prisma.$transaction(async (tx) => {
+    const { analysis, savedDetections } = await prisma.$transaction(async (tx) => {
       await tx.detection.deleteMany({ where: { photoId: photo.id } });
       await tx.mLAnalysis.deleteMany({ where: { photoId: photo.id } });
 
@@ -135,25 +135,27 @@ router.post("/:id/analyze", optionalAuth, async (req, res, next) => {
         },
       });
 
-      if (detections.length) {
-        await tx.detection.createMany({
-          data: detections.map((d) => ({
-            photoId: photo.id,
-            mlAnalysisId: created.id,
-            cocoLabel: d.cocoLabel,
-            accessibilityFeature: d.accessibilityFeature,
-            confidence: d.confidence,
-            boundingBox: d.boundingBox,
-          })),
-        });
-      }
+      // Return the rows WITH their generated ids so the client can confirm or
+      // reject individual detections by id in the review step.
+      const rows = detections.length
+        ? await tx.detection.createManyAndReturn({
+            data: detections.map((d) => ({
+              photoId: photo.id,
+              mlAnalysisId: created.id,
+              cocoLabel: d.cocoLabel,
+              accessibilityFeature: d.accessibilityFeature,
+              confidence: d.confidence,
+              boundingBox: d.boundingBox,
+            })),
+          })
+        : [];
 
       await tx.photo.update({
         where: { id: photo.id },
         data: { mlAnalyzed: true },
       });
 
-      return created;
+      return { analysis: created, savedDetections: rows };
     });
 
     res.json({
@@ -162,7 +164,14 @@ router.post("/:id/analyze", optionalAuth, async (req, res, next) => {
       modelVersion: MODEL_VERSION,
       totalDetections: detections.length,
       highConfidence,
-      detections,
+      // Persisted detections (include id + boundingBox) for the review step.
+      detections: savedDetections.map((d) => ({
+        id: d.id,
+        cocoLabel: d.cocoLabel,
+        accessibilityFeature: d.accessibilityFeature,
+        confidence: d.confidence,
+        boundingBox: d.boundingBox,
+      })),
       altTextSuggestion: result.altTextSuggestion ?? null,
     });
   } catch (err) {

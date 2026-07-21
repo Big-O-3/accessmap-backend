@@ -2,7 +2,7 @@ const express = require("express");
 const prisma = require("../lib/prisma");
 const { calculateAccessibilityScore } = require("../lib/score");
 const { MODEL_VERSION } = require("../lib/mlService");
-const optionalAuth = require("../middleware/optionalAuth");
+const requireAuth = require("../middleware/requireAuth");
 
 const router = express.Router();
 
@@ -13,9 +13,9 @@ const HIGH_CONFIDENCE = 0.85;
 // POST /api/contributions
 // Commit a completed "Add Venue" contribution (the stepper's Step 4).
 //
-// Auth is OPTIONAL for now (see optionalAuth): the frontend has no sign-in yet,
-// so anonymous contributions are allowed and attributed to userId=null. When a
-// token is sent later, the same endpoint attributes photos to the user.
+// Requires authentication. req.userId (from requireAuth) is used to attribute
+// the contribution — a signed-in user is a load-bearing part of the schema now,
+// so anonymous writes are rejected before any DB work happens.
 //
 // Body:
 //   {
@@ -35,10 +35,10 @@ const HIGH_CONFIDENCE = 0.85;
 //
 // Response: { id, venueId, accessibilityScore, featuresConfirmed,
 //             photosAdded, status: "pending_verification" }
-router.post("/", optionalAuth, async (req, res, next) => {
+router.post("/", requireAuth, async (req, res, next) => {
   try {
     const { venueId, venue: venueInput, features, photos, note } = req.body;
-    const userId = req.userId ?? null;
+    const userId = req.userId;
 
     if (!Array.isArray(features) || features.length === 0) {
       return res

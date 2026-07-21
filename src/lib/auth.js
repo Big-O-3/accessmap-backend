@@ -14,9 +14,17 @@ const SALT_ROUNDS = 10;
 // How long a login token stays valid.
 const TOKEN_EXPIRY = "7d";
 
-// The secret used to sign tokens. MUST be set in production; we fall back to a
-// dev-only value so the app still runs locally without config.
-const JWT_SECRET = process.env.JWT_SECRET || "dev-only-insecure-secret-change-me";
+// The secret used to sign tokens. MUST be set in production (we hard-fail at
+// startup if it's missing there so a misconfigured deploy can't ship with a
+// known secret). In dev we fall back to a placeholder so the app still runs
+// without config on a fresh clone.
+if (!process.env.JWT_SECRET && process.env.NODE_ENV === "production") {
+  throw new Error(
+    "JWT_SECRET is required in production. Set it before starting the server.",
+  );
+}
+const JWT_SECRET =
+  process.env.JWT_SECRET || "dev-only-insecure-secret-change-me";
 
 // Turn a plain password into a hash we can safely store.
 function hashPassword(plain) {

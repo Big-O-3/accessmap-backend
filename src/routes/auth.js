@@ -5,6 +5,19 @@ const requireAuth = require("../middleware/requireAuth");
 
 const router = express.Router();
 
+// httpOnly cookie means JS on the page can't read the token (immune to XSS
+// exfiltration). Secure requires HTTPS on both sides. SameSite=Lax blocks the
+// cookie from most cross-site POSTs, closing common CSRF vectors. maxAge
+// mirrors the JWT's 7d expiry so cookie and token die together.
+const COOKIE_NAME = "token";
+const COOKIE_OPTS = {
+  httpOnly: true,
+  secure: true,
+  sameSite: "lax",
+  path: "/",
+  maxAge: 7 * 24 * 60 * 60 * 1000,
+};
+
 // Shape a user for API responses — never leak the password hash.
 function publicUser(user) {
   return {
@@ -42,14 +55,17 @@ router.post("/register", async (req, res, next) => {
       data: { email, username, passwordHash: await hashPassword(password) },
     });
 
-    res.status(201).json({ token: signToken(user.id), user: publicUser(user) });
+    const token = signToken(user.id);
+    res.cookie(COOKIE_NAME, token, COOKIE_OPTS);
+    // Still return the token in the body so CLI/test tools can use Bearer auth.
+    res.status(201).json({ token, user: publicUser(user) });
   } catch (err) {
     next(err);
   }
 });
 
 // POST /api/auth/login
-// Exchange email + password for a token.
+// Exchange email + password for a session cookie (and a bearer token for tests).
 router.post("/login", async (req, res, next) => {
   try {
     const { email, password } = req.body;
@@ -64,14 +80,23 @@ router.post("/login", async (req, res, next) => {
       return res.status(401).json({ error: "Invalid credentials" });
     }
 
-    res.json({ token: signToken(user.id), user: publicUser(user) });
+    const token = signToken(user.id);
+    res.cookie(COOKIE_NAME, token, COOKIE_OPTS);
+    res.json({ token, user: publicUser(user) });
   } catch (err) {
     next(err);
   }
 });
 
+// POST /api/auth/logout
+// Clears the session cookie. Bearer-token clients can just drop the token.
+router.post("/logout", (_req, res) => {
+  res.clearCookie(COOKIE_NAME, { path: "/" });
+  res.json({ ok: true });
+});
+
 // GET /api/auth/me
-// Return the currently authenticated user (proves the token works).
+// Return the currently authenticated user (proves the session works).
 router.get("/me", requireAuth, async (req, res, next) => {
   try {
     const user = await prisma.user.findUnique({ where: { id: req.userId } });

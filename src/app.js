@@ -1,8 +1,6 @@
 const express = require("express");
 const cors = require("cors");
-const cookieParser = require("cookie-parser");
 
-const authRouter = require("./routes/auth");
 const venuesRouter = require("./routes/venues");
 const reviewsRouter = require("./routes/reviews");
 const photosRouter = require("./routes/photos");
@@ -33,15 +31,10 @@ app.use(
   }),
 );
 app.use(express.json());
-app.use(cookieParser());
 
 app.get("/health", (_req, res) => {
   res.json({ status: "healthy" });
 });
-
-// Auth: register, login, logout, and current-user (issues/validates JWTs
-// via an httpOnly cookie; the Bearer header still works for CLI/test tools).
-app.use("/api/auth", authRouter);
 
 // Prateek's venue endpoints (search, detail, score, route, create).
 app.use("/api/venues", venuesRouter);
@@ -52,8 +45,8 @@ app.use("/api/reviews", reviewsRouter);
 // Charles's photo + ML (Grounding DINO) detection endpoints.
 app.use("/api/photos", photosRouter);
 
-// Add Venue contribution submit (Step 4). Writes now require auth so we can
-// attribute contributions to the signed-in user.
+// Add Venue contribution submit (Step 4). Writes require a Supabase-issued
+// access token via the requireAuth middleware.
 app.use("/api/contributions", contributionsRouter);
 
 // 404 for unknown routes.

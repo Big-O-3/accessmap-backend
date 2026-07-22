@@ -8,12 +8,12 @@ const contributionsRouter = require("./routes/contributions");
 
 const app = express();
 
-// Cross-origin requests must be allowlisted explicitly because we send
-// credentials (httpOnly session cookies). "*" + credentials is rejected by
-// browsers. Set CORS_ORIGINS as a comma-separated list to support both
-// localhost and the LAN URL used by phones.
+// Cross-origin allowlist. Auth is a Bearer header (Supabase access token), so
+// we don't need `credentials: true` and can be strict about origins. Set
+// CORS_ORIGINS as a comma-separated list to support both localhost and any LAN
+// URL used by phones.
 const ALLOWED_ORIGINS = (
-  process.env.CORS_ORIGINS || "https://localhost:5173"
+  process.env.CORS_ORIGINS || "http://localhost:5173"
 )
   .split(",")
   .map((o) => o.trim())
@@ -27,7 +27,6 @@ app.use(
       if (ALLOWED_ORIGINS.includes(origin)) return cb(null, true);
       cb(new Error(`CORS: origin ${origin} not allowed`));
     },
-    credentials: true,
   }),
 );
 app.use(express.json());

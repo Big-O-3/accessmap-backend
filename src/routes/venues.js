@@ -8,7 +8,12 @@ const router = express.Router();
 // Shape a Venue (+features) for API responses: compute a live score and a flat
 // list of feature keys the frontend filters on.
 function serializeVenue(venue) {
-  const score = calculateAccessibilityScore(venue.features);
+  // A venue only gets a score once someone has uploaded a photo (which the ML
+  // model then analyzes). Venues sourced from map data alone are "unscored"
+  // (null) until that happens — showing a number would imply verification that
+  // never took place.
+  const score =
+    venue.totalPhotos > 0 ? calculateAccessibilityScore(venue.features) : null;
   return {
     id: venue.id,
     name: venue.name,
@@ -73,7 +78,10 @@ router.get("/search", async (req, res, next) => {
       }
       results.sort((a, b) => a.distance - b.distance);
     } else {
-      results.sort((a, b) => b.accessibilityScore - a.accessibilityScore);
+      // Highest score first; unscored venues (null) sort to the end.
+      results.sort(
+        (a, b) => (b.accessibilityScore ?? -1) - (a.accessibilityScore ?? -1),
+      );
     }
 
     res.json({ venues: results, total: results.length });
@@ -142,9 +150,13 @@ router.get("/:id/score", async (req, res, next) => {
       return res.status(404).json({ error: "Venue not found" });
     }
 
+    // Unscored until a photo has been uploaded (see serializeVenue).
     res.json({
       venueId: venue.id,
-      accessibilityScore: calculateAccessibilityScore(venue.features),
+      accessibilityScore:
+        venue.totalPhotos > 0
+          ? calculateAccessibilityScore(venue.features)
+          : null,
     });
   } catch (err) {
     next(err);

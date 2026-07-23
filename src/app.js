@@ -5,6 +5,7 @@ const venuesRouter = require("./routes/venues");
 const reviewsRouter = require("./routes/reviews");
 const photosRouter = require("./routes/photos");
 const contributionsRouter = require("./routes/contributions");
+const analyzeRouter = require("./routes/analyze");
 
 const app = express();
 
@@ -47,6 +48,9 @@ app.use("/api/photos", photosRouter);
 // Add Venue contribution submit (Step 4). Writes require a Supabase-issued
 // access token via the requireAuth middleware.
 app.use("/api/contributions", contributionsRouter);
+
+// Proxy unsaved-image analysis to the ML service. Keeps the ML URL server-side.
+app.use("/api/analyze", analyzeRouter);
 
 // 404 for unknown routes.
 app.use((req, res) => {

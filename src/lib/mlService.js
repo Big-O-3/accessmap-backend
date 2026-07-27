@@ -17,7 +17,11 @@ async function analyzePhoto(imageUrl) {
   // 1. Download the image bytes.
   const imageResponse = await fetch(imageUrl);
   if (!imageResponse.ok) {
-    throw new Error(`Failed to fetch image (${imageResponse.status}): ${imageUrl}`);
+    // Tagged with a status so the route doesn't misreport a broken image URL as
+    // "ML service unavailable" — the ML service isn't the thing that failed.
+    const err = new Error(`Failed to fetch image (${imageResponse.status}): ${imageUrl}`);
+    err.status = 502;
+    throw err;
   }
   const imageBlob = await imageResponse.blob();
 
@@ -30,7 +34,13 @@ async function analyzePhoto(imageUrl) {
     body: form,
   });
   if (!mlResponse.ok) {
-    throw new Error(`ML service error (${mlResponse.status})`);
+    const detail = await mlResponse.json().catch(() => null);
+    const err = new Error(detail?.error || `ML service error (${mlResponse.status})`);
+    // Carry the status so callers can separate "still warming up, retry" (503)
+    // from a genuine fault, and so a service that ANSWERED with an error isn't
+    // reported as unreachable.
+    err.status = mlResponse.status;
+    throw err;
   }
 
   return mlResponse.json();

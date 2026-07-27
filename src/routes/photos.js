@@ -113,7 +113,16 @@ router.post("/:id/analyze", requireAuth, async (req, res, next) => {
       result = await analyzePhoto(photo.imageUrl);
     } catch (mlErr) {
       console.error(mlErr);
-      return res.status(503).json({ error: "ML service unavailable" });
+      // "Unavailable" is only true when we couldn't reach the service at all
+      // (no status = fetch itself threw). If it answered with an error, say what
+      // it said — reporting a 500 as "unavailable" sends you to check whether
+      // the process is running when it was up the whole time.
+      if (!mlErr.status) {
+        return res.status(503).json({ error: "ML service unavailable" });
+      }
+      return res
+        .status(mlErr.status === 503 ? 503 : 502)
+        .json({ error: mlErr.message });
     }
     const processingTime = (Date.now() - startedAt) / 1000;
 

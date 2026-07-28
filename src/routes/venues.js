@@ -2,18 +2,24 @@ const express = require("express");
 const prisma = require("../lib/prisma");
 const { calculateAccessibilityScore } = require("../lib/score");
 const { distanceMiles } = require("../lib/geo");
+const { findExistingVenue } = require("../lib/venueDedup");
 
 const router = express.Router();
 
 // Shape a Venue (+features) for API responses: compute a live score and a flat
 // list of feature keys the frontend filters on.
 function serializeVenue(venue) {
-  // A venue only gets a score once someone has uploaded a photo (which the ML
-  // model then analyzes). Venues sourced from map data alone are "unscored"
-  // (null) until that happens — showing a number would imply verification that
-  // never took place.
+  // A venue is scored once it has real, human-vetted accessibility data: either
+  // a photo the ML model analyzed, OR a community contribution (a contributor
+  // confirming features from a photo or a manual checklist sets
+  // communityVerified). Map-imported venues (features present but never
+  // photo-analyzed or community-confirmed) stay "unscored" (null) — showing a
+  // number would imply verification that never took place.
+  const hasCommunityData = venue.features.some((f) => f.communityVerified);
   const score =
-    venue.totalPhotos > 0 ? calculateAccessibilityScore(venue.features) : null;
+    venue.totalPhotos > 0 || hasCommunityData
+      ? calculateAccessibilityScore(venue.features)
+      : null;
   return {
     id: venue.id,
     name: venue.name,
@@ -70,13 +76,23 @@ router.get("/search", async (req, res, next) => {
       const originLng = parseFloat(lng);
       results = results.map((v) => ({
         ...v,
-        distance: distanceMiles(originLat, originLng, v.latitude, v.longitude),
+        // Venues without coordinates have no distance; leave it null so they
+        // aren't given a bogus 0-mile distance that would sort them to the top.
+        distance:
+          v.latitude != null && v.longitude != null
+            ? distanceMiles(originLat, originLng, v.latitude, v.longitude)
+            : null,
       }));
       if (radius) {
         const r = parseFloat(radius);
-        results = results.filter((v) => v.distance <= r);
+        // A radius search is inherently about location, so drop venues we can't
+        // place (distance null) rather than including them arbitrarily.
+        results = results.filter((v) => v.distance != null && v.distance <= r);
       }
-      results.sort((a, b) => a.distance - b.distance);
+      // Nearest first; un-locatable venues (distance null) sort to the end.
+      results.sort(
+        (a, b) => (a.distance ?? Infinity) - (b.distance ?? Infinity),
+      );
     } else {
       // Highest score first; unscored venues (null) sort to the end.
       results.sort(
@@ -150,11 +166,13 @@ router.get("/:id/score", async (req, res, next) => {
       return res.status(404).json({ error: "Venue not found" });
     }
 
-    // Unscored until a photo has been uploaded (see serializeVenue).
+    // Unscored until there's a photo OR community-confirmed data (see
+    // serializeVenue for the full rationale).
+    const hasCommunityData = venue.features.some((f) => f.communityVerified);
     res.json({
       venueId: venue.id,
       accessibilityScore:
-        venue.totalPhotos > 0
+        venue.totalPhotos > 0 || hasCommunityData
           ? calculateAccessibilityScore(venue.features)
           : null,
     });
@@ -177,15 +195,19 @@ router.get("/:id/route", async (req, res, next) => {
       return res.status(404).json({ error: "Venue not found" });
     }
 
-    // Prefer routing to the exact place; fall back to the street address.
-    const destination = venue.placeId
+    // Prefer routing to exact coordinates; fall back to the street address when
+    // the venue has no coordinates (coords are optional now).
+    const hasCoords = venue.latitude != null && venue.longitude != null;
+    const destination = hasCoords
       ? `${venue.latitude},${venue.longitude}`
       : encodeURIComponent(
           `${venue.address}, ${venue.city}, ${venue.state} ${venue.zipCode}`.trim(),
         );
 
     const params = new URLSearchParams({ api: "1", destination });
-    if (venue.placeId) params.set("destination_place_id", venue.placeId);
+    // Only pin the place id alongside a coordinate destination; with an address
+    // destination the place id would refer to a point Maps can't resolve.
+    if (venue.placeId && hasCoords) params.set("destination_place_id", venue.placeId);
 
     res.json({
       venueId: venue.id,
@@ -211,10 +233,23 @@ router.post("/", async (req, res, next) => {
       venueType,
     } = req.body;
 
-    if (!name || !address || !city || latitude == null || longitude == null) {
+    // Coordinates are optional now (the venue just won't appear on the map).
+    if (!name || !address || !city) {
       return res
         .status(400)
-        .json({ error: "name, address, city, latitude, longitude are required" });
+        .json({ error: "name, address, city are required" });
+    }
+
+    // Don't create a second card for a place we already have. Match on placeId
+    // first, else name+city (case-insensitive) — see findExistingVenue. When we
+    // find one, return it (200) so the caller adds to it instead of duplicating.
+    const existing = await findExistingVenue(prisma, { placeId, name, city });
+    if (existing) {
+      const full = await prisma.venue.findUnique({
+        where: { id: existing.id },
+        include: { features: true },
+      });
+      return res.status(200).json(serializeVenue(full));
     }
 
     const venue = await prisma.venue.create({
@@ -224,8 +259,8 @@ router.post("/", async (req, res, next) => {
         city,
         state: state ?? "",
         zipCode: zipCode ?? "",
-        latitude: parseFloat(latitude),
-        longitude: parseFloat(longitude),
+        latitude: latitude == null ? null : parseFloat(latitude),
+        longitude: longitude == null ? null : parseFloat(longitude),
         placeId: placeId ?? null,
         venueType: venueType ?? "other",
       },

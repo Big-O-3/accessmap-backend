@@ -2,6 +2,7 @@ const express = require("express");
 const prisma = require("../lib/prisma");
 const { calculateAccessibilityScore } = require("../lib/score");
 const { MODEL_VERSION } = require("../lib/mlService");
+const { findExistingVenue } = require("../lib/venueDedup");
 const requireAuth = require("../middleware/requireAuth");
 
 const router = express.Router();
@@ -20,11 +21,13 @@ const HIGH_CONFIDENCE = 0.85;
 // Body:
 //   {
 //     venueId?: string,              // contribute to an existing venue, OR
-//     venue?: { name, address, city, state?, zipCode?, latitude, longitude,
+//     venue?: { name, address, city, state?, zipCode?, latitude?, longitude?,
 //               venueType?, placeId? },  // create a new venue inline
-//     features: [                    // the contributor-confirmed features
-//       { featureType, mlDetected?, confidence?, notes? }
-//     ],
+//                                        // (coordinates optional; deduped by
+//                                        //  placeId, else name+city)
+//     features?: [                   // contributor-confirmed features (from AI
+//       { featureType, mlDetected?, confidence?, notes? }  // review OR a manual
+//     ],                             // checklist when there's no photo)
 //     photos?: [                     // optional; only persisted if imageUrl set
 //       { imageUrl, thumbnailUrl?, altText?,
 //         detections?: [{ cocoLabel, accessibilityFeature, confidence,
@@ -33,6 +36,8 @@ const HIGH_CONFIDENCE = 0.85;
 //     note?: string
 //   }
 //
+// Must include at least one feature OR a note. Photos are always optional.
+//
 // Response: { id, venueId, accessibilityScore, featuresConfirmed,
 //             photosAdded, status: "pending_verification" }
 router.post("/", requireAuth, async (req, res, next) => {
@@ -40,10 +45,16 @@ router.post("/", requireAuth, async (req, res, next) => {
     const { venueId, venue: venueInput, features, photos, note } = req.body;
     const userId = req.userId;
 
-    if (!Array.isArray(features) || features.length === 0) {
-      return res
-        .status(422)
-        .json({ error: "At least one confirmed feature is required" });
+    const featureList = Array.isArray(features) ? features : [];
+    const trimmedNote = typeof note === "string" ? note.trim() : "";
+
+    // A contribution has to say something: either confirmed features (from AI
+    // review or a manual checklist) or a written note. Photos are optional now —
+    // adding to an existing venue can be just a checklist and/or a note.
+    if (featureList.length === 0 && !trimmedNote) {
+      return res.status(422).json({
+        error: "Add at least one feature or a note describing this venue",
+      });
     }
     if (!venueId && !venueInput) {
       return res
@@ -64,42 +75,54 @@ router.post("/", requireAuth, async (req, res, next) => {
         }
       } else {
         const v = venueInput;
-        if (
-          !v.name ||
-          !v.address ||
-          !v.city ||
-          v.latitude == null ||
-          v.longitude == null
-        ) {
-          const err = new Error(
-            "venue requires name, address, city, latitude, longitude",
-          );
+        // Coordinates are optional now (the venue just won't map). Name/address/
+        // city still anchor a venue enough to find and display it.
+        if (!v.name || !v.address || !v.city) {
+          const err = new Error("venue requires name, address, city");
           err.status = 422;
           throw err;
         }
-        venue = await tx.venue.create({
-          data: {
-            name: v.name,
-            address: v.address,
-            city: v.city,
-            state: v.state ?? "",
-            zipCode: v.zipCode ?? "",
-            latitude: parseFloat(v.latitude),
-            longitude: parseFloat(v.longitude),
-            placeId: v.placeId ?? null,
-            venueType: v.venueType ?? "other",
-          },
+        // Don't create a duplicate: if this place already exists (by placeId,
+        // else name+city), contribute to the existing venue instead of adding a
+        // second card for it.
+        const existing = await findExistingVenue(tx, {
+          placeId: v.placeId,
+          name: v.name,
+          city: v.city,
         });
+        venue =
+          existing ??
+          (await tx.venue.create({
+            data: {
+              name: v.name,
+              address: v.address,
+              city: v.city,
+              state: v.state ?? "",
+              zipCode: v.zipCode ?? "",
+              latitude: v.latitude == null ? null : parseFloat(v.latitude),
+              longitude: v.longitude == null ? null : parseFloat(v.longitude),
+              placeId: v.placeId ?? null,
+              venueType: v.venueType ?? "other",
+            },
+          }));
       }
 
       // 2. Upsert each confirmed feature. A contribution counts as one
       //    community verification, so verifiedCount increments and the feature
       //    is marked community-verified. Re-contributing the same feature bumps
-      //    the count (feeding the community bonus in the score).
-      for (const f of features) {
+      //    the count (feeding the community bonus in the score). Features may
+      //    come from AI review OR a manual checklist (no photo) — either way a
+      //    contributor-supplied feature is trusted at full weight when
+      //    mlDetected is false (see the scoring model).
+      let featuresConfirmed = 0;
+      for (const f of featureList) {
         if (!f.featureType) continue;
+        featuresConfirmed += 1;
         const mlDetected = f.mlDetected ?? false;
         const mlConfidence = mlDetected ? (f.confidence ?? null) : null;
+        // Prefer a per-feature note, else fall back to the contribution note so
+        // a written note isn't lost when there's a feature to hang it on.
+        const featureNote = f.notes ?? (trimmedNote || null);
 
         await tx.venueFeature.upsert({
           where: {
@@ -115,13 +138,15 @@ router.post("/", requireAuth, async (req, res, next) => {
             mlConfidence,
             communityVerified: true,
             verifiedCount: 1,
-            notes: f.notes ?? null,
+            notes: featureNote,
           },
           update: {
             verifiedCount: { increment: 1 },
             communityVerified: true,
             // Keep the best ML confidence we've seen for this feature.
             ...(mlConfidence != null ? { mlConfidence } : {}),
+            // Only overwrite the stored note when this contribution supplied one.
+            ...(featureNote != null ? { notes: featureNote } : {}),
           },
         });
       }
@@ -192,7 +217,7 @@ router.post("/", requireAuth, async (req, res, next) => {
       return {
         venueId: updated.id,
         accessibilityScore,
-        featuresConfirmed: features.length,
+        featuresConfirmed,
         photosAdded,
       };
     });
@@ -200,7 +225,7 @@ router.post("/", requireAuth, async (req, res, next) => {
     res.status(201).json({
       id: `contribution-${result.venueId}`,
       status: "pending_verification",
-      note: note ?? "",
+      note: trimmedNote,
       ...result,
     });
   } catch (err) {

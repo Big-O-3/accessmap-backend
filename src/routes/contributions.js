@@ -83,12 +83,15 @@ router.post("/", requireAuth, async (req, res, next) => {
           throw err;
         }
         // Don't create a duplicate: if this place already exists (by placeId,
-        // else name+city), contribute to the existing venue instead of adding a
-        // second card for it.
+        // else same name near the same coordinates, else name+city when there
+        // are no coordinates), contribute to the existing venue instead of
+        // adding a second card for it.
         const existing = await findExistingVenue(tx, {
           placeId: v.placeId,
           name: v.name,
           city: v.city,
+          latitude: v.latitude,
+          longitude: v.longitude,
         });
         venue =
           existing ??

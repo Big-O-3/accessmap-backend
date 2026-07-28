@@ -241,9 +241,16 @@ router.post("/", async (req, res, next) => {
     }
 
     // Don't create a second card for a place we already have. Match on placeId
-    // first, else name+city (case-insensitive) — see findExistingVenue. When we
-    // find one, return it (200) so the caller adds to it instead of duplicating.
-    const existing = await findExistingVenue(prisma, { placeId, name, city });
+    // first, else same name at nearly the same coordinates, else name+city when
+    // there are no coordinates (see findExistingVenue). When we find one, return
+    // it (200) so the caller adds to it instead of duplicating.
+    const existing = await findExistingVenue(prisma, {
+      placeId,
+      name,
+      city,
+      latitude,
+      longitude,
+    });
     if (existing) {
       const full = await prisma.venue.findUnique({
         where: { id: existing.id },

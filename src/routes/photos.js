@@ -56,19 +56,23 @@ router.post("/", requireAuth, upload.single("image"), async (req, res, next) => 
       return res.status(404).json({ error: "Venue not found" });
     }
 
-    const photo = await prisma.photo.create({
-      data: {
-        venueId,
-        imageUrl,
-        thumbnailUrl: thumbnailUrl ?? null,
-        userId: userId ?? null,
-      },
-    });
-
-    // Keep the venue's denormalized photo count in sync.
-    await prisma.venue.update({
-      where: { id: venueId },
-      data: { totalPhotos: { increment: 1 } },
+    // Create the photo and bump the venue's denormalized count together so a
+    // failure can't leave the counter out of sync with the actual rows (mirrors
+    // the delete path).
+    const photo = await prisma.$transaction(async (tx) => {
+      const created = await tx.photo.create({
+        data: {
+          venueId,
+          imageUrl,
+          thumbnailUrl: thumbnailUrl ?? null,
+          userId: userId ?? null,
+        },
+      });
+      await tx.venue.update({
+        where: { id: venueId },
+        data: { totalPhotos: { increment: 1 } },
+      });
+      return created;
     });
 
     res.status(201).json(photo);

@@ -46,10 +46,17 @@ function serializeVenue(venue) {
 // GET /api/venues/search?city=&features=a,b&radius=&lat=&lng=
 router.get("/search", async (req, res, next) => {
   try {
-    const { city, features, radius, lat, lng } = req.query;
+    const { city, features, radius, lat, lng, types } = req.query;
 
     const where = {};
     if (city) where.city = { contains: city, mode: "insensitive" };
+
+    // Filter by venue category (restaurant, museum, arena, ...). Comma-separated
+    // list; a venue matches if its type is any of the requested ones.
+    const requestedTypes = types
+      ? types.split(",").map((t) => t.trim()).filter(Boolean)
+      : [];
+    if (requestedTypes.length) where.venueType = { in: requestedTypes };
 
     // Require all requested features to be present on the venue.
     const requested = features

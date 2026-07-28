@@ -8,6 +8,7 @@
     "dev": "nodemon src/server.js",
     "seed": "node prisma/seed.js",
     "import:osm": "node prisma/importOsm.js",
+    "import:bay": "node prisma/importBayArea.js",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "test": "echo \"Error: no test specified\" && exit 1"

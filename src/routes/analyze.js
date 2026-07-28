@@ -1,7 +1,7 @@
 const express = require("express");
 const multer = require("multer");
 
-const { ML_SERVICE_URL } = require("../lib/mlService");
+const { ML_SERVICE_URL, fetchWithTimeout, ML_FETCH_TIMEOUT_MS } = require("../lib/mlService");
 
 const router = express.Router();
 
@@ -27,10 +27,24 @@ router.post("/", upload.single("image"), async (req, res, next) => {
     });
     form.append("image", blob, req.file.originalname || "photo.jpg");
 
-    const mlResponse = await fetch(`${ML_SERVICE_URL}/analyze`, {
-      method: "POST",
-      body: form,
-    });
+    let mlResponse;
+    try {
+      mlResponse = await fetchWithTimeout(
+        `${ML_SERVICE_URL}/analyze`,
+        { method: "POST", body: form },
+        ML_FETCH_TIMEOUT_MS,
+      );
+    } catch (err) {
+      // A timeout is retryable (model busy/cold-starting); a connection error
+      // means the service is down. Both are 503s the client can act on, rather
+      // than a hung request or an opaque 500.
+      const timedOut = err.name === "AbortError";
+      return res.status(503).json({
+        error: timedOut
+          ? "The analyzer took too long to respond. Please try again."
+          : "ML service unavailable. Please try again shortly.",
+      });
+    }
     if (!mlResponse.ok) {
       // Pass the ML service's own message through rather than flattening every
       // failure into an opaque 502. It sends a real explanation in the body,

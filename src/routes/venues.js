@@ -131,6 +131,10 @@ router.get("/:id", async (req, res, next) => {
     // positives don't appear as bounding boxes on the public venue page.
     const photos = venue.photos.map((p) => ({
       id: p.id,
+      // Uploader id so the client can show a delete control only on the
+      // signed-in user's own photos (ownership is re-checked server-side in
+      // DELETE /api/photos/:id — this is a UI hint, not a gate).
+      userId: p.userId,
       imageUrl: p.imageUrl,
       thumbnailUrl: p.thumbnailUrl,
       detections: p.detections

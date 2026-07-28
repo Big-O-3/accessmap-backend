@@ -31,8 +31,12 @@ model Venue {
   city               String
   state              String
   zipCode            String
-  latitude           Float
-  longitude          Float
+  // Optional: map-sourced venues have coordinates, but a contributor can add a
+  // venue (or add to an existing one) without pinning a location. Rows without
+  // coordinates simply don't appear on the map (see VenueMap) and are excluded
+  // from distance search/sort.
+  latitude           Float?
+  longitude          Float?
   placeId            String?  @unique
   venueType          String
   accessibilityScore Int      @default(0)

@@ -77,19 +77,39 @@ router.post("/", requireAuth, async (req, res, next) => {
           err.status = 422;
           throw err;
         }
-        venue = await tx.venue.create({
-          data: {
-            name: v.name,
-            address: v.address,
-            city: v.city,
-            state: v.state ?? "",
-            zipCode: v.zipCode ?? "",
-            latitude: parseFloat(v.latitude),
-            longitude: parseFloat(v.longitude),
-            placeId: v.placeId ?? null,
-            venueType: v.venueType ?? "other",
-          },
-        });
+        // Reuse an existing venue instead of creating a duplicate: match on
+        // placeId, or same (case-insensitive) name within ~55m. Keeps repeated
+        // contributions to the same place from spawning new rows.
+        const lat = parseFloat(v.latitude);
+        const lng = parseFloat(v.longitude);
+        const EPS = 0.0005;
+        venue =
+          (v.placeId
+            ? await tx.venue.findUnique({ where: { placeId: v.placeId } })
+            : null) ??
+          (await tx.venue.findFirst({
+            where: {
+              name: { equals: v.name, mode: "insensitive" },
+              latitude: { gte: lat - EPS, lte: lat + EPS },
+              longitude: { gte: lng - EPS, lte: lng + EPS },
+            },
+          }));
+
+        if (!venue) {
+          venue = await tx.venue.create({
+            data: {
+              name: v.name,
+              address: v.address,
+              city: v.city,
+              state: v.state ?? "",
+              zipCode: v.zipCode ?? "",
+              latitude: lat,
+              longitude: lng,
+              placeId: v.placeId ?? null,
+              venueType: v.venueType ?? "other",
+            },
+          });
+        }
       }
 
       // 2. Upsert each confirmed feature. A contribution counts as one

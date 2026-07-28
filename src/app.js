@@ -6,6 +6,7 @@ const reviewsRouter = require("./routes/reviews");
 const photosRouter = require("./routes/photos");
 const contributionsRouter = require("./routes/contributions");
 const analyzeRouter = require("./routes/analyze");
+const externalRouter = require("./routes/external");
 
 const app = express();
 
@@ -51,6 +52,10 @@ app.use("/api/contributions", contributionsRouter);
 
 // Proxy unsaved-image analysis to the ML service. Keeps the ML URL server-side.
 app.use("/api/analyze", analyzeRouter);
+
+// External data proxies (Yelp review excerpts). Keeps third-party keys
+// server-side; supplements our community reviews, never stored.
+app.use("/api/external", externalRouter);
 
 // 404 for unknown routes.
 app.use((req, res) => {

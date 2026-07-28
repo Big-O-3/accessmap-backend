@@ -1,6 +1,7 @@
 const express = require("express");
 const prisma = require("../lib/prisma");
 const { calculateAccessibilityScore } = require("../lib/score");
+const { findDuplicateVenue } = require("../lib/venueDedupe");
 const { distanceMiles } = require("../lib/geo");
 
 const router = express.Router();
@@ -215,6 +216,17 @@ router.post("/", async (req, res, next) => {
       return res
         .status(400)
         .json({ error: "name, address, city, latitude, longitude are required" });
+    }
+
+    // Don't create a duplicate: if this venue already exists (same placeId, or
+    // same name at nearly the same coordinates), return the existing one.
+    const existing = await findDuplicateVenue({ name, latitude, longitude, placeId });
+    if (existing) {
+      const full = await prisma.venue.findUnique({
+        where: { id: existing.id },
+        include: { features: true },
+      });
+      return res.status(200).json(serializeVenue(full));
     }
 
     const venue = await prisma.venue.create({

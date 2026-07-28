@@ -4,11 +4,15 @@ const requireAuth = require("../middleware/requireAuth");
 
 const router = express.Router();
 
-// Shape a Review row for the frontend, which renders review.userName.
+// Shape a Review row for the frontend, which renders review.userName. The
+// `userId` is included so the client can tell whose review this is and show a
+// delete control only on the signed-in user's own reviews (ownership is still
+// re-checked server-side in DELETE — the client value is a UI hint, not a gate).
 function serializeReview(review) {
   return {
     id: review.id,
     venueId: review.venueId,
+    userId: review.userId,
     rating: review.rating,
     comment: review.comment,
     visitDate: review.visitDate,
@@ -97,6 +101,40 @@ router.post("/", requireAuth, async (req, res, next) => {
     if (err.status) {
       return res.status(err.status).json({ error: err.message });
     }
+    next(err);
+  }
+});
+
+// DELETE /api/reviews/:id
+// Remove a review. Requires auth, and only the review's author may delete it —
+// req.userId (from the verified token) must match the stored userId, so one
+// user can't delete another's review by guessing an id. Decrements the venue's
+// denormalized totalReviews counter in the same transaction as the delete so a
+// failure leaves no partial state.
+router.delete("/:id", requireAuth, async (req, res, next) => {
+  try {
+    const review = await prisma.review.findUnique({
+      where: { id: req.params.id },
+    });
+    if (!review) {
+      return res.status(404).json({ error: "Review not found" });
+    }
+    if (review.userId !== req.userId) {
+      return res
+        .status(403)
+        .json({ error: "You can only delete your own reviews" });
+    }
+
+    await prisma.$transaction(async (tx) => {
+      await tx.review.delete({ where: { id: review.id } });
+      await tx.venue.update({
+        where: { id: review.venueId },
+        data: { totalReviews: { decrement: 1 } },
+      });
+    });
+
+    res.json({ success: true });
+  } catch (err) {
     next(err);
   }
 });

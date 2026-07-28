@@ -225,17 +225,30 @@ router.patch("/:id/detections", requireAuth, async (req, res, next) => {
 });
 
 // DELETE /api/photos/:id
+// Requires auth, and only the uploader may delete their photo — req.userId
+// (from the verified token) must match the stored uploader. Photos with no
+// recorded uploader (userId null, e.g. seed data) belong to no one, so they
+// aren't deletable through this route. Deleting the photo cascades to its
+// MLAnalysis + Detection rows (see schema onDelete: Cascade); the venue's
+// totalPhotos counter is decremented in the same transaction.
 router.delete("/:id", requireAuth, async (req, res, next) => {
   try {
     const photo = await prisma.photo.findUnique({ where: { id: req.params.id } });
     if (!photo) {
       return res.status(404).json({ error: "Photo not found" });
     }
+    if (photo.userId == null || photo.userId !== req.userId) {
+      return res
+        .status(403)
+        .json({ error: "You can only delete your own photos" });
+    }
 
-    await prisma.photo.delete({ where: { id: photo.id } });
-    await prisma.venue.update({
-      where: { id: photo.venueId },
-      data: { totalPhotos: { decrement: 1 } },
+    await prisma.$transaction(async (tx) => {
+      await tx.photo.delete({ where: { id: photo.id } });
+      await tx.venue.update({
+        where: { id: photo.venueId },
+        data: { totalPhotos: { decrement: 1 } },
+      });
     });
 
     res.json({ success: true });

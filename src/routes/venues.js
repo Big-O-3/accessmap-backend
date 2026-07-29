@@ -3,6 +3,7 @@ const prisma = require("../lib/prisma");
 const { calculateAccessibilityScore } = require("../lib/score");
 const { distanceMiles } = require("../lib/geo");
 const { findExistingVenue } = require("../lib/venueDedup");
+const { serializeReview } = require("./reviews");
 
 const router = express.Router();
 
@@ -120,7 +121,13 @@ router.get("/:id", async (req, res, next) => {
       where: { id: req.params.id },
       include: {
         features: true,
-        reviews: { orderBy: { createdAt: "desc" } },
+        // Join the author so each review carries a userName. Without this the
+        // rows come back nameless and the venue page renders a blank name on
+        // revisit — unlike a just-posted review, which is serialized with it.
+        reviews: {
+          orderBy: { createdAt: "desc" },
+          include: { user: { select: { username: true } } },
+        },
         photos: {
           orderBy: { uploadedAt: "desc" },
           include: { detections: true },
@@ -158,7 +165,10 @@ router.get("/:id", async (req, res, next) => {
     res.json({
       ...serializeVenue(venue),
       photos,
-      reviews: venue.reviews,
+      // Shape reviews through the same serializer the reviews route uses, so a
+      // review looks identical whether it arrives here or from GET /api/reviews
+      // (notably: it keeps its userName).
+      reviews: venue.reviews.map(serializeReview),
     });
   } catch (err) {
     next(err);

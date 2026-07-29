@@ -139,4 +139,55 @@ router.delete("/:id", requireAuth, async (req, res, next) => {
   }
 });
 
+// POST /api/reviews/:id/helpful
+// Mark a review as helpful. Requires auth. Increments the review's denormalized
+// helpfulCount and returns the updated review so the client can show the new
+// number. The frontend tracks per-browser which reviews it has already marked
+// (see frontend src/lib/userData.js) so a single browser can't inflate the
+// count by clicking repeatedly.
+router.post("/:id/helpful", requireAuth, async (req, res, next) => {
+  try {
+    const review = await prisma.review.findUnique({
+      where: { id: req.params.id },
+    });
+    if (!review) {
+      return res.status(404).json({ error: "Review not found" });
+    }
+
+    const updated = await prisma.review.update({
+      where: { id: review.id },
+      data: { helpfulCount: { increment: 1 } },
+      include: { user: { select: { username: true } } },
+    });
+
+    res.json(serializeReview(updated));
+  } catch (err) {
+    next(err);
+  }
+});
+
+// DELETE /api/reviews/:id/helpful
+// Undo a helpful mark. Requires auth. Decrements helpfulCount but never below 0
+// (a guard in case the client's per-browser state drifted out of sync).
+router.delete("/:id/helpful", requireAuth, async (req, res, next) => {
+  try {
+    const review = await prisma.review.findUnique({
+      where: { id: req.params.id },
+    });
+    if (!review) {
+      return res.status(404).json({ error: "Review not found" });
+    }
+
+    const updated = await prisma.review.update({
+      where: { id: review.id },
+      data: { helpfulCount: Math.max(0, (review.helpfulCount ?? 0) - 1) },
+      include: { user: { select: { username: true } } },
+    });
+
+    res.json(serializeReview(updated));
+  } catch (err) {
+    next(err);
+  }
+});
+
 module.exports = router;

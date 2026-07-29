@@ -190,4 +190,10 @@ router.delete("/:id/helpful", requireAuth, async (req, res, next) => {
   }
 });
 
+// Expose the serializer so other routes that return reviews (e.g. the venue
+// detail endpoint) shape them identically — same fields, same joined userName —
+// instead of hand-rolling a second shape that can silently drift. app.js mounts
+// the default export as a router, so hang the helper off it as a property.
+router.serializeReview = serializeReview;
+
 module.exports = router;

@@ -36,4 +36,22 @@ function calculateAccessibilityScore(features = []) {
   return Math.round(Math.max(0, Math.min(score, 100)));
 }
 
-module.exports = { calculateAccessibilityScore };
+// Community accessibility verdict from review votes. Reviewers answer "Was this
+// venue accessible? yes / partial / no"; this reduces the tallies to a single
+// plain verdict. Returns null when there are no votes yet, so the UI can show
+// "Not yet rated" rather than a misleading answer.
+//
+// Rule: a clear (>60%) majority of "yes" reads as accessible; a clear majority
+// of "no" as not accessible; anything mixed (or mostly "partial") is "partial".
+// We err toward caution because a wrong "accessible" is worse for a wheelchair
+// user than a wrong "partial".
+function communityVerdict({ yes = 0, partial = 0, no = 0 } = {}) {
+  const total = yes + partial + no;
+  if (total < 1) return null;
+
+  if (yes / total > 0.6) return "yes";
+  if (no / total > 0.6) return "no";
+  return "partial";
+}
+
+module.exports = { calculateAccessibilityScore, communityVerdict };

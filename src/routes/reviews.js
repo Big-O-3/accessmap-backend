@@ -17,6 +17,7 @@ function serializeReview(review) {
     comment: review.comment,
     visitDate: review.visitDate,
     helpfulCount: review.helpfulCount,
+    accessibilityVote: review.accessibilityVote ?? null,
     createdAt: review.createdAt,
     userName: review.user?.username ?? "Anonymous",
   };
@@ -44,13 +45,22 @@ router.get("/", async (req, res, next) => {
   }
 });
 
+// Accessibility votes and which venue tally column each increments.
+const VOTE_COLUMN = {
+  yes: "accessYesCount",
+  partial: "accessPartialCount",
+  no: "accessNoCount",
+};
+
 // POST /api/reviews
 // Leave a review on a venue. Requires auth; attributed to the signed-in user
 // (req.userId from requireAuth). Body: { venueId, rating (1-5), comment,
-// visitDate? }. Increments the venue's denormalized totalReviews counter.
+// visitDate?, accessibilityVote? ("yes"|"partial"|"no") }. Increments the
+// venue's totalReviews counter and, when a vote is given, the matching
+// accessibility tally that drives the community verdict.
 router.post("/", requireAuth, async (req, res, next) => {
   try {
-    const { venueId, rating, comment, visitDate } = req.body;
+    const { venueId, rating, comment, visitDate, accessibilityVote } = req.body;
 
     if (!venueId) {
       return res.status(422).json({ error: "venueId is required" });
@@ -65,6 +75,13 @@ router.post("/", requireAuth, async (req, res, next) => {
     }
     if (!comment || !comment.trim()) {
       return res.status(422).json({ error: "comment is required" });
+    }
+    // The vote is optional, but if supplied it must be one of the known values.
+    const vote = accessibilityVote ?? null;
+    if (vote !== null && !VOTE_COLUMN[vote]) {
+      return res
+        .status(422)
+        .json({ error: "accessibilityVote must be yes, partial, or no" });
     }
 
     // Write the review and bump the venue's counter together so a failure
@@ -84,14 +101,15 @@ router.post("/", requireAuth, async (req, res, next) => {
           rating: numericRating,
           comment: comment.trim(),
           visitDate: visitDate ? new Date(visitDate) : null,
+          accessibilityVote: vote,
         },
         include: { user: { select: { username: true } } },
       });
 
-      await tx.venue.update({
-        where: { id: venueId },
-        data: { totalReviews: { increment: 1 } },
-      });
+      // Bump totalReviews, and the matching accessibility tally when voted.
+      const venueUpdate = { totalReviews: { increment: 1 } };
+      if (vote) venueUpdate[VOTE_COLUMN[vote]] = { increment: 1 };
+      await tx.venue.update({ where: { id: venueId }, data: venueUpdate });
 
       return created;
     });
@@ -127,9 +145,15 @@ router.delete("/:id", requireAuth, async (req, res, next) => {
 
     await prisma.$transaction(async (tx) => {
       await tx.review.delete({ where: { id: review.id } });
+      // Reverse this review's contribution to the counters: totalReviews, and
+      // its accessibility tally if it carried a vote.
+      const venueUpdate = { totalReviews: { decrement: 1 } };
+      if (review.accessibilityVote && VOTE_COLUMN[review.accessibilityVote]) {
+        venueUpdate[VOTE_COLUMN[review.accessibilityVote]] = { decrement: 1 };
+      }
       await tx.venue.update({
         where: { id: review.venueId },
-        data: { totalReviews: { decrement: 1 } },
+        data: venueUpdate,
       });
     });
 

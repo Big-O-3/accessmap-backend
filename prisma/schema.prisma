@@ -42,6 +42,12 @@ model Venue {
   accessibilityScore Int      @default(0)
   totalReviews       Int      @default(0)
   totalPhotos        Int      @default(0)
+  // Denormalized community accessibility-vote tallies. Each review can answer
+  // "Was this venue accessible? yes / partial / no"; these counters let the
+  // venue's community verdict be derived without loading every review.
+  accessYesCount     Int      @default(0)
+  accessPartialCount Int      @default(0)
+  accessNoCount      Int      @default(0)
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
 
@@ -79,6 +85,10 @@ model Review {
   comment      String
   visitDate    DateTime?
   helpfulCount Int       @default(0)
+  // The reviewer's accessibility verdict for this visit: "yes" | "partial" |
+  // "no" (nullable — older reviews predate this). Distinct from the star
+  // rating, which measures overall experience, not accessibility.
+  accessibilityVote String?
   createdAt    DateTime  @default(now())
 
   @@index([venueId])

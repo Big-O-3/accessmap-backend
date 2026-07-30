@@ -1,6 +1,6 @@
 const express = require("express");
 const prisma = require("../lib/prisma");
-const { calculateAccessibilityScore } = require("../lib/score");
+const { calculateAccessibilityScore, communityVerdict } = require("../lib/score");
 const { distanceMiles } = require("../lib/geo");
 const { findExistingVenue } = require("../lib/venueDedup");
 const { serializeReview } = require("./reviews");
@@ -34,6 +34,18 @@ function serializeVenue(venue) {
     accessibilityScore: score,
     totalReviews: venue.totalReviews,
     totalPhotos: venue.totalPhotos,
+    // Community accessibility verdict ("yes" | "partial" | "no" | null) from
+    // reviewers' accessibility votes — the plain answer the UI leads with.
+    accessVotes: {
+      yes: venue.accessYesCount ?? 0,
+      partial: venue.accessPartialCount ?? 0,
+      no: venue.accessNoCount ?? 0,
+    },
+    communityVerdict: communityVerdict({
+      yes: venue.accessYesCount ?? 0,
+      partial: venue.accessPartialCount ?? 0,
+      no: venue.accessNoCount ?? 0,
+    }),
     features: venue.features.map((f) => ({
       type: f.featureType,
       mlDetected: f.mlDetected,

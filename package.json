@@ -6,13 +6,11 @@
   "scripts": {
     "start": "node src/server.js",
     "dev": "nodemon src/server.js",
-    "build": "prisma generate && prisma migrate deploy",
     "seed": "node prisma/seed.js",
     "import:osm": "node prisma/importOsm.js",
     "import:bay": "node prisma/importBayArea.js",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
-    "migrate:deploy": "prisma migrate deploy",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {
@@ -34,10 +32,10 @@
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
     "jose": "^6.2.3",
-    "multer": "^2.2.0",
-    "prisma": "^6.19.3"
+    "multer": "^2.2.0"
   },
   "devDependencies": {
-    "nodemon": "^3.1.14"
+    "nodemon": "^3.1.14",
+    "prisma": "^6.19.3"
   }
 }

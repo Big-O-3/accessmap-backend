@@ -10,7 +10,18 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
+  // Runtime queries go through DATABASE_URL. On Supabase this is the pooler
+  // (transaction mode, port 6543 + ?pgbouncer=true), which fits many short-
+  // lived serverless connections.
+  url = env("DATABASE_URL")
+  // Migrations use DIRECT_URL instead. Prisma's migration engine needs a direct
+  // session connection for DDL + advisory locks; run over the transaction
+  // pooler it hangs, so `migrate deploy` must reach Postgres directly (Supabase
+  // session pooler port 5432, no pgbouncer). This var must ALWAYS be set (Prisma
+  // errors if a referenced env var is missing) — locally, point it at the same
+  // direct/session URL you use for DATABASE_URL. Only migration commands read
+  // it; the runtime client and `prisma generate` don't connect through it.
+  directUrl = env("DIRECT_URL")
 }
 
 model User {

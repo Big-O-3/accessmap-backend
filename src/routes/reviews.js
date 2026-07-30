@@ -83,6 +83,25 @@ router.post("/", requireAuth, async (req, res, next) => {
         .status(422)
         .json({ error: "accessibilityVote must be yes, partial, or no" });
     }
+    // Visit date is optional, but when given it must be a real date that isn't
+    // in the future. The frontend sends a plain YYYY-MM-DD (parsed as UTC
+    // midnight); comparing against two days out in UTC keeps a legitimate
+    // same-day visit from being rejected when the visitor's timezone runs ahead
+    // of the server's, while still blocking clearly-future dates.
+    if (visitDate) {
+      const visited = new Date(visitDate);
+      if (Number.isNaN(visited.getTime())) {
+        return res.status(422).json({ error: "visitDate is not a valid date" });
+      }
+      const cutoff = new Date();
+      cutoff.setUTCHours(0, 0, 0, 0);
+      cutoff.setUTCDate(cutoff.getUTCDate() + 2);
+      if (visited >= cutoff) {
+        return res
+          .status(422)
+          .json({ error: "visitDate cannot be in the future" });
+      }
+    }
 
     // Write the review and bump the venue's counter together so a failure
     // leaves no partial state.

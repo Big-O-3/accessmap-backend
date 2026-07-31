@@ -67,7 +67,7 @@ router.post("/", requireAuth, async (req, res, next) => {
     const { venueId, rating, comment, accessibilityVote } = req.body;
 
     if (!venueId) {
-      return res.status(422).json({ error: "venueId is required" });
+      return res.status(400).json({ error: "venueId is required" });
     }
     const numericRating = Number(rating);
     if (
@@ -75,16 +75,16 @@ router.post("/", requireAuth, async (req, res, next) => {
       numericRating < 1 ||
       numericRating > 5
     ) {
-      return res.status(422).json({ error: "rating must be an integer 1-5" });
+      return res.status(400).json({ error: "rating must be an integer 1-5" });
     }
     if (!comment || !comment.trim()) {
-      return res.status(422).json({ error: "comment is required" });
+      return res.status(400).json({ error: "comment is required" });
     }
     // The vote is optional, but if supplied it must be one of the known values.
     const vote = accessibilityVote ?? null;
     if (vote !== null && !VOTE_COLUMN[vote]) {
       return res
-        .status(422)
+        .status(400)
         .json({ error: "accessibilityVote must be yes, partial, or no" });
     }
 

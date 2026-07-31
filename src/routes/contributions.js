@@ -52,13 +52,13 @@ router.post("/", requireAuth, async (req, res, next) => {
     // review or a manual checklist) or a written note. Photos are optional now —
     // adding to an existing venue can be just a checklist and/or a note.
     if (featureList.length === 0 && !trimmedNote) {
-      return res.status(422).json({
+      return res.status(400).json({
         error: "Add at least one feature or a note describing this venue",
       });
     }
     if (!venueId && !venueInput) {
       return res
-        .status(422)
+        .status(400)
         .json({ error: "Provide venueId (existing) or venue (to create)" });
     }
 
@@ -79,7 +79,7 @@ router.post("/", requireAuth, async (req, res, next) => {
         // city still anchor a venue enough to find and display it.
         if (!v.name || !v.address || !v.city) {
           const err = new Error("venue requires name, address, city");
-          err.status = 422;
+          err.status = 400;
           throw err;
         }
         // Don't create a duplicate: if this place already exists (by placeId,

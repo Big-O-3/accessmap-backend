@@ -1,13 +1,13 @@
 // One-off importer to populate ~100 REAL Bay Area venues in three categories:
 // restaurants, concert venues / arenas, and museums. Data comes from the
 // Overpass API (OpenStreetMap). Accessibility features are mapped from OSM tags
-// (mlDetected:false / verifiedCount:0 — honest defaults, not invented).
+// (mlDetected:false / verifiedCount:0 - honest defaults, not invented).
 //
 // Run with: npm run import:bay
 //
 // Behavior:
 //   - Preserves venues that already have real contributions (photos, reviews,
-//     or community-verified features) — those are never deleted.
+//     or community-verified features) - those are never deleted.
 //   - Deletes plain OSM-imported venues with no contributions.
 //   - Imports fresh venues across the Bay Area, then trims to TARGET_TOTAL.
 const prisma = require("../src/lib/prisma");

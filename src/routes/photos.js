@@ -13,7 +13,7 @@ const HIGH_CONFIDENCE = 0.85;
 
 // Shape a Detection for API responses. Returning `prisma` rows directly would
 // leak internal columns (foreign keys, timestamps) and couple the frontend to
-// the DB schema, so we project only the fields the client actually uses — the
+// the DB schema, so we project only the fields the client actually uses - the
 // same set the venue-detail endpoint (routes/venues.js) sends.
 function serializeDetection(d) {
   return {
@@ -27,7 +27,7 @@ function serializeDetection(d) {
 }
 
 // Shape a Photo (optionally with its detections) for API responses. `detections`
-// may be absent (e.g. a freshly created photo) — default to an empty array.
+// may be absent (e.g. a freshly created photo) - default to an empty array.
 function serializePhoto(photo) {
   return {
     id: photo.id,
@@ -148,7 +148,7 @@ router.post("/:id/analyze", requireAuth, async (req, res, next) => {
       console.error(mlErr);
       // "Unavailable" is only true when we couldn't reach the service at all
       // (no status = fetch itself threw). If it answered with an error, say what
-      // it said — reporting a 500 as "unavailable" sends you to check whether
+      // it said - reporting a 500 as "unavailable" sends you to check whether
       // the process is running when it was up the whole time.
       if (!mlErr.status) {
         return res.status(503).json({ error: "ML service unavailable" });
@@ -258,7 +258,7 @@ router.patch("/:id/detections", requireAuth, async (req, res, next) => {
 });
 
 // DELETE /api/photos/:id
-// Requires auth, and only the uploader may delete their photo — req.userId
+// Requires auth, and only the uploader may delete their photo - req.userId
 // (from the verified token) must match the stored uploader. Photos with no
 // recorded uploader (userId null, e.g. seed data) belong to no one, so they
 // aren't deletable through this route. Deleting the photo cascades to its

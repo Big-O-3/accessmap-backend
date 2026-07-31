@@ -4,13 +4,13 @@
 // POST /api/contributions.
 //
 // Match order (first hit wins):
-//   1. placeId — the map provider's stable id. Same placeId is unambiguously
+//   1. placeId - the map provider's stable id. Same placeId is unambiguously
 //      the same place regardless of spelling or coordinates.
-//   2. name + coordinates — same (case-insensitive) name within COORD_EPSILON of
+//   2. name + coordinates - same (case-insensitive) name within COORD_EPSILON of
 //      the given point. Tight enough that genuinely different branches of a
 //      chain (e.g. two locations a mile apart) stay separate venues. Used when
 //      the submission carries coordinates.
-//   3. name + city — the fallback when there are no coordinates (a hand-typed
+//   3. name + city - the fallback when there are no coordinates (a hand-typed
 //      venue added without a location). Not perfect, but it stops the common
 //      case of re-adding a venue someone already entered.
 //
@@ -46,7 +46,7 @@ async function findExistingVenue(client, { placeId, name, city, latitude, longit
     });
   }
 
-  // No coordinates to disambiguate on — fall back to name + city so a venue
+  // No coordinates to disambiguate on - fall back to name + city so a venue
   // added without a location still dedupes against an earlier entry.
   if (city) {
     return client.venue.findFirst({

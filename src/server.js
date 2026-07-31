@@ -21,7 +21,7 @@ function checkDatabaseUrl(rawUrl) {
   try {
     url = new URL(rawUrl);
   } catch {
-    return; // Malformed — let Prisma report it, with its better error message.
+    return; // Malformed - let Prisma report it, with its better error message.
   }
   if (url.port === "6543" && url.searchParams.get("pgbouncer") !== "true") {
     console.warn(

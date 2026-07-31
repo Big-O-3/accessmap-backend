@@ -15,7 +15,7 @@ const HIGH_CONFIDENCE = 0.85;
 // Commit a completed "Add Venue" contribution (the stepper's Step 4).
 //
 // Requires authentication. req.userId (from requireAuth) is used to attribute
-// the contribution — a signed-in user is a load-bearing part of the schema now,
+// the contribution - a signed-in user is a load-bearing part of the schema now,
 // so anonymous writes are rejected before any DB work happens.
 //
 // Body:
@@ -49,7 +49,7 @@ router.post("/", requireAuth, async (req, res, next) => {
     const trimmedNote = typeof note === "string" ? note.trim() : "";
 
     // A contribution has to say something: either confirmed features (from AI
-    // review or a manual checklist) or a written note. Photos are optional now —
+    // review or a manual checklist) or a written note. Photos are optional now -
     // adding to an existing venue can be just a checklist and/or a note.
     if (featureList.length === 0 && !trimmedNote) {
       return res.status(400).json({
@@ -64,7 +64,7 @@ router.post("/", requireAuth, async (req, res, next) => {
 
     // Everything is written together so a failure leaves no partial state.
     const result = await prisma.$transaction(async (tx) => {
-      // 1. Resolve the venue — look up an existing one or create a new one.
+      // 1. Resolve the venue - look up an existing one or create a new one.
       let venue;
       if (venueId) {
         venue = await tx.venue.findUnique({ where: { id: venueId } });
@@ -114,7 +114,7 @@ router.post("/", requireAuth, async (req, res, next) => {
       //    community verification, so verifiedCount increments and the feature
       //    is marked community-verified. Re-contributing the same feature bumps
       //    the count (feeding the community bonus in the score). Features may
-      //    come from AI review OR a manual checklist (no photo) — either way a
+      //    come from AI review OR a manual checklist (no photo) - either way a
       //    contributor-supplied feature is trusted at full weight when
       //    mlDetected is false (see the scoring model).
       let featuresConfirmed = 0;
@@ -156,7 +156,7 @@ router.post("/", requireAuth, async (req, res, next) => {
 
       // 3. Persist any photos that carry a hosted URL, along with their ML
       //    analysis + detection rows (same shape as the photos route). Photos
-      //    without a URL (e.g. local-only blobs) are skipped — the feature data
+      //    without a URL (e.g. local-only blobs) are skipped - the feature data
       //    above is still recorded.
       let photosAdded = 0;
       for (const p of photos ?? []) {

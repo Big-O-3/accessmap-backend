@@ -28,7 +28,7 @@ const JWT_SECRET = process.env.SUPABASE_JWT_SECRET;
 
 if (!SUPABASE_URL && !JWT_SECRET) {
   throw new Error(
-    "Set SUPABASE_URL (preferred — the same value the frontend uses for " +
+    "Set SUPABASE_URL (preferred - the same value the frontend uses for " +
       "VITE_SUPABASE_URL) so tokens can be verified against your project's " +
       "JWKS, or SUPABASE_JWT_SECRET if your project still signs with the " +
       "legacy HS256 shared secret.",
@@ -47,7 +47,7 @@ const SECRET_KEY = JWT_SECRET ? new TextEncoder().encode(JWT_SECRET) : null;
 
 async function verifyToken(token) {
   // Read the header to pick a key type. This is unverified input, so it only
-  // decides WHICH verification runs — jwtVerify still rejects a token whose
+  // decides WHICH verification runs - jwtVerify still rejects a token whose
   // signature doesn't match, and pinning `algorithms` below stops a token from
   // talking us into a weaker check than the one its key type requires.
   const { alg } = decodeProtectedHeader(token);
@@ -120,7 +120,7 @@ async function requireAuth(req, res, next) {
     next();
   } catch (err) {
     // Log the reason. Swallowed, the only symptom is a 401 that the frontend
-    // renders as "your session expired" — which sends you off to look at token
+    // renders as "your session expired" - which sends you off to look at token
     // lifetimes when the actual cause is usually a verification mismatch we
     // could have named outright.
     console.warn(`Rejected token (${err.code || "error"}): ${err.message}`);

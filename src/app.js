@@ -39,7 +39,7 @@ app.get("/health", (_req, res) => {
 // Prateek's venue endpoints (search, detail, score, route, create).
 app.use("/api/venues", venuesRouter);
 
-// Reviews read endpoint — the venue-detail page reads from this.
+// Reviews read endpoint - the venue-detail page reads from this.
 app.use("/api/reviews", reviewsRouter);
 
 // Charles's photo + ML (Grounding DINO) detection endpoints.

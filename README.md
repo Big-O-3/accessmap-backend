@@ -7,7 +7,7 @@ Backend API for AccessMap, a platform that helps wheelchair users find accessibl
    required except where noted. Note **`DIRECT_URL`**: because it's wired to
    `directUrl` in `prisma/schema.prisma`, every `prisma` command errors
    (`P1012`) if it's unset. In local dev just set it to the same value as
-   `DATABASE_URL` — a local Postgres connection is already direct.
+   `DATABASE_URL` - a local Postgres connection is already direct.
 2. `npm install` (runs `prisma generate` via `postinstall`).
 3. `npm run prisma:migrate` to apply migrations to your dev DB.
 4. `npm run dev`.
@@ -34,8 +34,8 @@ direct connection), so the app uses two connection strings:
 
 | Env var | Used by | Supabase value |
 | --- | --- | --- |
-| `DATABASE_URL` | runtime queries | Pooler connection (session pooler, port 5432 — see `.env.example`) |
-| `DIRECT_URL` | `prisma migrate deploy` | **Direct connection** (host `db.<ref>.supabase.co`, port 5432 — Settings → Database → Connection string → *Direct connection*) |
+| `DATABASE_URL` | runtime queries | Pooler connection (session pooler, port 5432 - see `.env.example`) |
+| `DIRECT_URL` | `prisma migrate deploy` | **Direct connection** (host `db.<ref>.supabase.co`, port 5432 - Settings → Database → Connection string → *Direct connection*) |
 
 Set **both** in the Render dashboard (Environment). Without `DIRECT_URL` the
 build's migrate step fails.

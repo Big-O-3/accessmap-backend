@@ -4,7 +4,7 @@
 //
 // Data comes from the Overpass API (OpenStreetMap's query service). We map
 // OSM's accessibility tags to our own feature keys. Unlike seed.js, these are
-// REAL places with REAL accessibility data — features are mlDetected:false and
+// REAL places with REAL accessibility data - features are mlDetected:false and
 // verifiedCount:0 because a human/AI hasn't verified them yet (honest defaults).
 //
 // Safe to re-run: venues are upserted by placeId ("osm:<type>/<id>"), so a

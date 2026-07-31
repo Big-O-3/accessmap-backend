@@ -14,7 +14,7 @@ function serializeVenue(venue) {
   // a photo the ML model analyzed, OR a community contribution (a contributor
   // confirming features from a photo or a manual checklist sets
   // communityVerified). Map-imported venues (features present but never
-  // photo-analyzed or community-confirmed) stay "unscored" (null) — showing a
+  // photo-analyzed or community-confirmed) stay "unscored" (null) - showing a
   // number would imply verification that never took place.
   const hasCommunityData = venue.features.some((f) => f.communityVerified);
   const score =
@@ -35,7 +35,7 @@ function serializeVenue(venue) {
     totalReviews: venue.totalReviews,
     totalPhotos: venue.totalPhotos,
     // Community accessibility verdict ("yes" | "partial" | "no" | null) from
-    // reviewers' accessibility votes — the plain answer the UI leads with.
+    // reviewers' accessibility votes - the plain answer the UI leads with.
     accessVotes: {
       yes: venue.accessYesCount ?? 0,
       partial: venue.accessPartialCount ?? 0,
@@ -135,7 +135,7 @@ router.get("/:id", async (req, res, next) => {
         features: true,
         // Join the author so each review carries a userName. Without this the
         // rows come back nameless and the venue page renders a blank name on
-        // revisit — unlike a just-posted review, which is serialized with it.
+        // revisit - unlike a just-posted review, which is serialized with it.
         reviews: {
           orderBy: { createdAt: "desc" },
           include: { user: { select: { username: true } } },
@@ -159,7 +159,7 @@ router.get("/:id", async (req, res, next) => {
       id: p.id,
       // Uploader id so the client can show a delete control only on the
       // signed-in user's own photos (ownership is re-checked server-side in
-      // DELETE /api/photos/:id — this is a UI hint, not a gate).
+      // DELETE /api/photos/:id - this is a UI hint, not a gate).
       userId: p.userId,
       imageUrl: p.imageUrl,
       thumbnailUrl: p.thumbnailUrl,

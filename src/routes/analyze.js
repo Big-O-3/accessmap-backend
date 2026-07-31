@@ -48,7 +48,7 @@ router.post("/", upload.single("image"), async (req, res, next) => {
     if (!mlResponse.ok) {
       // Pass the ML service's own message through rather than flattening every
       // failure into an opaque 502. It sends a real explanation in the body,
-      // and its 503 (model still cold-starting) is retryable — the client can
+      // and its 503 (model still cold-starting) is retryable - the client can
       // only offer "try again" if we keep that status intact.
       const detail = await mlResponse.json().catch(() => null);
       return res.status(mlResponse.status === 503 ? 503 : 502).json({

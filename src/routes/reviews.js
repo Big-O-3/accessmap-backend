@@ -7,7 +7,7 @@ const router = express.Router();
 // Shape a Review row for the frontend, which renders review.userName. The
 // `userId` is included so the client can tell whose review this is and show a
 // delete control only on the signed-in user's own reviews (ownership is still
-// re-checked server-side in DELETE — the client value is a UI hint, not a gate).
+// re-checked server-side in DELETE - the client value is a UI hint, not a gate).
 function serializeReview(review) {
   return {
     id: review.id,
@@ -142,7 +142,7 @@ router.post("/", requireAuth, async (req, res, next) => {
 });
 
 // DELETE /api/reviews/:id
-// Remove a review. Requires auth, and only the review's author may delete it —
+// Remove a review. Requires auth, and only the review's author may delete it -
 // req.userId (from the verified token) must match the stored userId, so one
 // user can't delete another's review by guessing an id. Decrements the venue's
 // denormalized totalReviews counter in the same transaction as the delete so a
@@ -233,7 +233,7 @@ router.delete("/:id/helpful", requireAuth, async (req, res, next) => {
 });
 
 // Expose the serializer so other routes that return reviews (e.g. the venue
-// detail endpoint) shape them identically — same fields, same joined userName —
+// detail endpoint) shape them identically - same fields, same joined userName -
 // instead of hand-rolling a second shape that can silently drift. app.js mounts
 // the default export as a router, so hang the helper off it as a property.
 router.serializeReview = serializeReview;

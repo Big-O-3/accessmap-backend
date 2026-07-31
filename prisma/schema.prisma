@@ -10,7 +10,7 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  // Runtime queries go through the pooler (DATABASE_URL). Migrations can't —
+  // Runtime queries go through the pooler (DATABASE_URL). Migrations can't -
   // they need advisory locks + DDL over a direct, non-pooled connection, so
   // `prisma migrate deploy` uses DIRECT_URL. For local dev where DATABASE_URL
   // is already a direct connection, set DIRECT_URL to the same value.
@@ -90,7 +90,7 @@ model Review {
   comment      String
   helpfulCount Int       @default(0)
   // The reviewer's accessibility verdict for this visit: "yes" | "partial" |
-  // "no" (nullable — older reviews predate this). Distinct from the star
+  // "no" (nullable - older reviews predate this). Distinct from the star
   // rating, which measures overall experience, not accessibility.
   accessibilityVote String?
   createdAt    DateTime  @default(now())

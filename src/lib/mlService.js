@@ -11,7 +11,7 @@ const ML_SERVICE_URL = process.env.ML_SERVICE_URL || "http://localhost:5001";
 // model used by accessmap-ml (detector.py MODEL_VERSION).
 const MODEL_VERSION = "grounding-dino-tiny";
 
-// Time budgets (ms). Without them, fetch() waits indefinitely — a wedged ML
+// Time budgets (ms). Without them, fetch() waits indefinitely - a wedged ML
 // process would keep this request hanging forever instead of failing fast, and
 // the user just watches a spinner. The ML call gets the longer budget: on a
 // cold Render instance the model can take ~30s, and it may also be queued
@@ -51,7 +51,7 @@ async function analyzePhoto(imageUrl) {
   }
   if (!imageResponse.ok) {
     // Tagged with a status so the route doesn't misreport a broken image URL as
-    // "ML service unavailable" — the ML service isn't the thing that failed.
+    // "ML service unavailable" - the ML service isn't the thing that failed.
     const err = new Error(`Failed to fetch image (${imageResponse.status}): ${imageUrl}`);
     err.status = 502;
     throw err;

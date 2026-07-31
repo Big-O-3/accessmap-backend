@@ -1,0 +1,40 @@
+# Render Blueprint for the AccessMap backend.
+#
+# Render can create the service from this file (New → Blueprint, pick the repo),
+# or you can mirror these settings on an existing web service's dashboard. The
+# key part is buildCommand: it runs `prisma migrate deploy` on every deploy, so
+# schema migrations are applied to the database automatically before the new
+# code starts serving.
+services:
+  - type: web
+    name: accessmap-backend
+    runtime: node
+    plan: free
+    # `npm install` triggers the postinstall `prisma generate`; then apply any
+    # pending migrations. migrate deploy uses DIRECT_URL (a direct, non-pooled
+    # connection) — it takes advisory locks and runs DDL, which the Supabase
+    # pooler can't do. It's a no-op when the DB is already up to date, so it's
+    # safe to run on every deploy.
+    buildCommand: npm install && npm run prisma:deploy
+    startCommand: npm start
+    envVars:
+      # Runtime queries go through the Supabase pooler.
+      - key: DATABASE_URL
+        sync: false
+      # Migrations only — direct (non-pooled) Supabase connection, port 5432.
+      - key: DIRECT_URL
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_JWT_SECRET
+        sync: false
+      - key: ML_SERVICE_URL
+        sync: false
+      - key: CLOUDINARY_CLOUD_NAME
+        sync: false
+      - key: CLOUDINARY_API_KEY
+        sync: false
+      - key: CLOUDINARY_API_SECRET
+        sync: false
+      - key: CORS_ORIGINS
+        sync: false

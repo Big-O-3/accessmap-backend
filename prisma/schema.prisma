@@ -10,7 +10,12 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
+  // Runtime queries go through the pooler (DATABASE_URL). Migrations can't —
+  // they need advisory locks + DDL over a direct, non-pooled connection, so
+  // `prisma migrate deploy` uses DIRECT_URL. For local dev where DATABASE_URL
+  // is already a direct connection, set DIRECT_URL to the same value.
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 model User {

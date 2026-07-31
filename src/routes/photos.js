@@ -11,6 +11,35 @@ const router = express.Router();
 // pre-checked for the contributor. Mirrors the ML service's threshold.
 const HIGH_CONFIDENCE = 0.85;
 
+// Shape a Detection for API responses. Returning `prisma` rows directly would
+// leak internal columns (foreign keys, timestamps) and couple the frontend to
+// the DB schema, so we project only the fields the client actually uses — the
+// same set the venue-detail endpoint (routes/venues.js) sends.
+function serializeDetection(d) {
+  return {
+    id: d.id,
+    cocoLabel: d.cocoLabel,
+    accessibilityFeature: d.accessibilityFeature,
+    confidence: d.confidence,
+    boundingBox: d.boundingBox,
+    verified: d.verified,
+  };
+}
+
+// Shape a Photo (optionally with its detections) for API responses. `detections`
+// may be absent (e.g. a freshly created photo) — default to an empty array.
+function serializePhoto(photo) {
+  return {
+    id: photo.id,
+    venueId: photo.venueId,
+    userId: photo.userId,
+    imageUrl: photo.imageUrl,
+    thumbnailUrl: photo.thumbnailUrl ?? null,
+    mlAnalyzed: photo.mlAnalyzed,
+    detections: (photo.detections ?? []).map(serializeDetection),
+  };
+}
+
 // Hold uploaded files in memory (max 10MB) so we can stream them to Cloudinary
 // without writing to disk.
 const upload = multer({
@@ -75,7 +104,7 @@ router.post("/", requireAuth, upload.single("image"), async (req, res, next) => 
       return created;
     });
 
-    res.status(201).json(photo);
+    res.status(201).json(serializePhoto(photo));
   } catch (err) {
     next(err);
   }
@@ -94,7 +123,7 @@ router.get("/:id", async (req, res, next) => {
       return res.status(404).json({ error: "Photo not found" });
     }
 
-    res.json(photo);
+    res.json(serializePhoto(photo));
   } catch (err) {
     next(err);
   }
@@ -222,7 +251,7 @@ router.patch("/:id/detections", requireAuth, async (req, res, next) => {
       where: { photoId: photo.id },
     });
 
-    res.json({ photoId: photo.id, detections });
+    res.json({ photoId: photo.id, detections: detections.map(serializeDetection) });
   } catch (err) {
     next(err);
   }

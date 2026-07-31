@@ -83,7 +83,6 @@ model Review {
   user         User      @relation(fields: [userId], references: [id])
   rating       Int
   comment      String
-  visitDate    DateTime?
   helpfulCount Int       @default(0)
   // The reviewer's accessibility verdict for this visit: "yes" | "partial" |
   // "no" (nullable — older reviews predate this). Distinct from the star

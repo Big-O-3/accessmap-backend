@@ -15,7 +15,6 @@ function serializeReview(review) {
     userId: review.userId,
     rating: review.rating,
     comment: review.comment,
-    visitDate: review.visitDate,
     helpfulCount: review.helpfulCount,
     accessibilityVote: review.accessibilityVote ?? null,
     createdAt: review.createdAt,
@@ -55,12 +54,17 @@ const VOTE_COLUMN = {
 // POST /api/reviews
 // Leave a review on a venue. Requires auth; attributed to the signed-in user
 // (req.userId from requireAuth). Body: { venueId, rating (1-5), comment,
-// visitDate?, accessibilityVote? ("yes"|"partial"|"no") }. Increments the
-// venue's totalReviews counter and, when a vote is given, the matching
-// accessibility tally that drives the community verdict.
+// accessibilityVote? ("yes"|"partial"|"no") }. The review is dated by its
+// createdAt (server time). Increments the venue's totalReviews counter and,
+// when a vote is given, the matching accessibility tally that drives the
+// community verdict.
+//
+// Rate limit: one review per user per venue per day, so a single account can't
+// spam a venue's feed. Enforced inside the transaction (below) so two racing
+// requests can't both slip past the check.
 router.post("/", requireAuth, async (req, res, next) => {
   try {
-    const { venueId, rating, comment, visitDate, accessibilityVote } = req.body;
+    const { venueId, rating, comment, accessibilityVote } = req.body;
 
     if (!venueId) {
       return res.status(422).json({ error: "venueId is required" });
@@ -83,25 +87,6 @@ router.post("/", requireAuth, async (req, res, next) => {
         .status(422)
         .json({ error: "accessibilityVote must be yes, partial, or no" });
     }
-    // Visit date is optional, but when given it must be a real date that isn't
-    // in the future. The frontend sends a plain YYYY-MM-DD (parsed as UTC
-    // midnight); comparing against two days out in UTC keeps a legitimate
-    // same-day visit from being rejected when the visitor's timezone runs ahead
-    // of the server's, while still blocking clearly-future dates.
-    if (visitDate) {
-      const visited = new Date(visitDate);
-      if (Number.isNaN(visited.getTime())) {
-        return res.status(422).json({ error: "visitDate is not a valid date" });
-      }
-      const cutoff = new Date();
-      cutoff.setUTCHours(0, 0, 0, 0);
-      cutoff.setUTCDate(cutoff.getUTCDate() + 2);
-      if (visited >= cutoff) {
-        return res
-          .status(422)
-          .json({ error: "visitDate cannot be in the future" });
-      }
-    }
 
     // Write the review and bump the venue's counter together so a failure
     // leaves no partial state.
@@ -113,13 +98,27 @@ router.post("/", requireAuth, async (req, res, next) => {
         throw err;
       }
 
+      // Rate limit: reject if this user already reviewed this venue in the last
+      // 24 hours. Checked in the same transaction as the create so two requests
+      // firing at once can't both pass.
+      const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
+      const recent = await tx.review.findFirst({
+        where: { venueId, userId: req.userId, createdAt: { gte: since } },
+      });
+      if (recent) {
+        const err = new Error(
+          "You've already reviewed this venue today. Please try again later.",
+        );
+        err.status = 429;
+        throw err;
+      }
+
       const created = await tx.review.create({
         data: {
           venueId,
           userId: req.userId,
           rating: numericRating,
           comment: comment.trim(),
-          visitDate: visitDate ? new Date(visitDate) : null,
           accessibilityVote: vote,
         },
         include: { user: { select: { username: true } } },

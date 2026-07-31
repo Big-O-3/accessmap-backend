@@ -5,6 +5,7 @@
   "main": "src/server.js",
   "scripts": {
     "start": "node src/server.js",
+    "predev": "prisma generate",
     "dev": "nodemon src/server.js",
     "seed": "node prisma/seed.js",
     "import:osm": "node prisma/importOsm.js",
